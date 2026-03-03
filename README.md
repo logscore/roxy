@@ -23,7 +23,13 @@ Everything is built into the `roxy` binary:
 
 ### Quick install (recommended)
 
-Downloads the latest pre-built binary for your platform:
+Homebrew:
+
+```bash
+brew install logscore/tap/roxy
+```
+
+Linux/MacOS:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/logscore/roxy/master/install.sh | bash
@@ -100,12 +106,12 @@ roxy stop a2m4l
 
 ### Proxy management
 
-The proxy auto-starts when you run `roxy run`, and spins down when the last roxy process stops. You can also manage it directly:
+The proxy auto-starts when you run `roxy run`. You can also manage it directly:
 
 ```bash
 roxy proxy start              # start the proxy (detached by default)
 roxy proxy stop               # stop the proxy
-roxy proxy restart             # restart the proxy
+roxy proxy restart            # restart the proxy
 roxy proxy start --no-detach  # run in the foreground (useful for debugging)
 ```
 
@@ -120,7 +126,7 @@ roxy proxy start --no-detach  # run in the foreground (useful for debugging)
 
 #### Privileged ports
 
-On macOS, unprivileged processes can bind to any port including 80 and 443 if bound on 0.0.0.0, which we do so you can access your domain on the network.
+On macOS, unprivileged processes can bind to any port including 80 and 443 if bound on 0.0.0.0, which we do so you can access your domain on the network (excluding the DNS server which is bound to :1299).
 
 On Linux, ports below 1024 are restricted. If the proxy fails to bind to port 80, you have two options:
 
@@ -151,8 +157,8 @@ The DNS server starts and stops with the proxy. The resolver is configured autom
 ### Nuke everything
 
 ```bash
-roxy stop -a        # stop everything, clear routes. Like docker compose down, but for all the servers.
-roxy stop -a -r     # also remove DNS resolver config
+roxy stop -a              # stop everything, clear routes. Like docker compose down, but for all the servers.
+roxy stop -a --remove-dns # also remove DNS resolver config
 ```
 
 | Short | Long | Description |
