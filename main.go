@@ -21,12 +21,14 @@ Usage:
   roxy stop -a [--remove-dns]    Stop all routes and proxy
   roxy logs <id|domain>          Tail logs for a detached process
   roxy proxy <start|stop|restart|status|logs>  Manage the proxy server
+  roxy tunnel <set|status>       Configure tunnel provider
 
 Run flags:
   -d, --detach           Run in the background (detached mode)
   -p, --port <n>         Pin to an exact port (default: random)
   -n, --name <name>      Override subdomain name
   --tls                  Enable HTTPS for this process
+  --public               Expose via tunnel (requires configured provider)
   --listen-port <n>      TCP mode: proxy listens on this port, forwards to service
 
 Stop flags:
@@ -70,6 +72,9 @@ func main() {
 	case "proxy":
 		err = proxyCommand(args[1:])
 
+	case "tunnel":
+		err = tunnelCommand(args[1:])
+
 	case "help", "--help", "-h":
 		fmt.Println(usage)
 		os.Exit(0)
@@ -92,9 +97,10 @@ const runUsage = `Usage:
 Flags:
   -a, --all              Run all services from roxy.yaml
   -d, --detach           Run in the background (detached mode)
-  -p, --port <n>         Start scanning from this port (default: 3000)
+  -p, --port <n>         Sets the port for the process. Increments from that value if that port is taken
   -n, --name <name>      Override subdomain name
   --tls                  Enable HTTPS for this process
+  --public               Expose via tunnel (requires configured provider)
   --listen-port <n>      TCP mode: proxy listens on this port, forwards to service`
 
 const stopUsage = `Usage:
@@ -149,6 +155,8 @@ func runCommand(args []string) error {
 			opts.Name = args[i]
 		case "--tls":
 			opts.TLS = true
+		case "--public":
+			opts.Public = true
 		case "-d", "--detach":
 			opts.Detach = true
 		case "--log-file":
@@ -188,7 +196,7 @@ func runCommand(args []string) error {
 		if cfg == nil {
 			die("no roxy.yaml found in current directory")
 		}
-		return cmd.RunAll(cfg, opts.Detach)
+		return cmd.RunAll(cfg, opts)
 	}
 
 	// roxy run (no args) -> show usage
@@ -208,7 +216,7 @@ func runCommand(args []string) error {
 			die(fmt.Sprintf("unknown service %q (no roxy.yaml found)\n\n%s", opts.Command, runUsage))
 		}
 		if svc, ok := cfg.Services[opts.Command]; ok {
-			return cmd.RunService(opts.Command, svc, opts.Detach)
+			return cmd.RunService(opts.Command, svc, opts)
 		}
 		names := make([]string, 0, len(cfg.Services))
 		for name := range cfg.Services {
@@ -334,6 +342,26 @@ func proxyCommand(args []string) error {
 		return cmd.ProxyRestart(opts)
 	default:
 		die(fmt.Sprintf("unknown proxy command: %s\n\n%s", args[0], proxyUsage))
+		return nil
+	}
+}
+
+const tunnelUsage = `Usage:
+  roxy tunnel set              Choose a tunnel provider
+  roxy tunnel status           Show current tunnel configuration`
+
+func tunnelCommand(args []string) error {
+	if len(args) == 0 {
+		die(tunnelUsage)
+	}
+
+	switch args[0] {
+	case "set":
+		return cmd.TunnelSet()
+	case "status":
+		return cmd.TunnelStatus()
+	default:
+		die(fmt.Sprintf("unknown tunnel command: %s\n\n%s", args[0], tunnelUsage))
 		return nil
 	}
 }

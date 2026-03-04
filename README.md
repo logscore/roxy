@@ -84,7 +84,7 @@ roxy run -d "bun dev"                 # runs in detached mode like docker
 | Short | Long | Description |
 |-------|------|-------------|
 | `-d` | `--detach` | Run in the background (detached mode) |
-| `-p` | `--port <n>` | Start scanning from this port (default: 3000) |
+| `-p` | `--port <n>` | Sets the port for the process. Increments from that value if that port is taken |
 | `-n` | `--name <name>` | Override subdomain name |
 |      | `--tls` | Enable HTTPS for this server |
 

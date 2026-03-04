@@ -24,14 +24,38 @@ func List() error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "ID\tDOMAIN\tTYPE\tPORT\tLISTEN\tPID\tCOMMAND")
+	// Check if any route has a public URL to decide column layout
+	hasPublic := false
 	for _, r := range routes {
-		listen := ""
-		if r.ListenPort > 0 {
-			listen = fmt.Sprintf("%d", r.ListenPort)
+		if r.PublicURL != "" {
+			hasPublic = true
+			break
 		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%d\t%s\n", r.ID, r.Domain, r.Type, r.Port, listen, r.PID, r.Command)
 	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+
+	if hasPublic {
+		_, _ = fmt.Fprintln(w, "ID\tDOMAIN\tTYPE\tPORT\tLISTEN\tPUBLIC URL\tPID\tCOMMAND")
+		for _, r := range routes {
+			listen := ""
+			if r.ListenPort > 0 {
+				listen = fmt.Sprintf("%d", r.ListenPort)
+			}
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%d\t%s\n",
+				r.ID, r.Domain, r.Type, r.Port, listen, r.PublicURL, r.PID, r.Command)
+		}
+	} else {
+		_, _ = fmt.Fprintln(w, "ID\tDOMAIN\tTYPE\tPORT\tLISTEN\tPID\tCOMMAND")
+		for _, r := range routes {
+			listen := ""
+			if r.ListenPort > 0 {
+				listen = fmt.Sprintf("%d", r.ListenPort)
+			}
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%d\t%s\n",
+				r.ID, r.Domain, r.Type, r.Port, listen, r.PID, r.Command)
+		}
+	}
+
 	return w.Flush()
 }

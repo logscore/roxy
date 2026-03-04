@@ -19,6 +19,7 @@ type ServiceConfig struct {
 	Port       int    `yaml:"port"`
 	TLS        bool   `yaml:"tls"`
 	ListenPort int    `yaml:"listen-port"`
+	Public     bool   `yaml:"public"`
 }
 
 // LoadRoxyYAML reads roxy.yaml from the given directory.

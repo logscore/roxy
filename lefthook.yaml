@@ -4,3 +4,5 @@ pre-commit:
       run: gofmt -l . && git diff --exit-code
     lint:
       run: golangci-lint run
+    build:
+      run: make cross

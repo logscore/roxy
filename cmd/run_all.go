@@ -31,7 +31,8 @@ var colors = []string{
 const colorReset = "\x1b[0m"
 
 // RunAll starts all services from a RoxyConfig concurrently with prefixed output.
-func RunAll(cfg *config.RoxyConfig, detach bool) error {
+// callerOpts carries CLI flags (e.g. --detach, --public) that apply to every service.
+func RunAll(cfg *config.RoxyConfig, callerOpts RunOptions) error {
 	if len(cfg.Services) == 0 {
 		return fmt.Errorf("no services defined in roxy.yaml")
 	}
@@ -44,10 +45,10 @@ func RunAll(cfg *config.RoxyConfig, detach bool) error {
 	sort.Strings(names)
 
 	// If detach mode, just run each service detached via RunService.
-	if detach {
+	if callerOpts.Detach {
 		for _, name := range names {
 			svc := cfg.Services[name]
-			if err := RunService(name, svc, true); err != nil {
+			if err := RunService(name, svc, callerOpts); err != nil {
 				return fmt.Errorf("service %s: %w", name, err)
 			}
 		}

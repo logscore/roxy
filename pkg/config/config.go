@@ -27,7 +27,9 @@ type Route struct {
 	TLS        bool      `json:"tls"`                   // serve this route over HTTPS
 	Command    string    `json:"command"`
 	PID        int       `json:"pid"`
-	LogFile    string    `json:"log_file,omitempty"` // stdout/stderr log for detached processes
+	LogFile    string    `json:"log_file,omitempty"`   // stdout/stderr log for detached processes
+	Public     bool      `json:"public,omitempty"`     // tunnel is active for this route
+	PublicURL  string    `json:"public_url,omitempty"` // public tunnel URL (e.g. https://abc123.ngrok-free.app)
 	Created    time.Time `json:"created"`
 }
 

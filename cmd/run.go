@@ -13,6 +13,7 @@ import (
 	"github.com/logscore/roxy/internal/port"
 	"github.com/logscore/roxy/internal/process"
 	"github.com/logscore/roxy/internal/proxy"
+	"github.com/logscore/roxy/internal/tunnel"
 	"github.com/logscore/roxy/pkg/config"
 )
 
@@ -25,6 +26,7 @@ type RunOptions struct {
 	LogFile    string
 	ID         string // internal: passed from parent when re-execing in detach mode
 	ListenPort int    // TCP mode: proxy listens on this port and forwards to the service
+	Public     bool   // expose via tunnel (requires configured provider)
 }
 
 // LogsDir returns the path to the logs directory.
@@ -128,21 +130,50 @@ func Run(opts RunOptions) error {
 		id = config.GenerateID(dom)
 	}
 
+	// Resolve tunnel provider if --public is set
+	var tunnelProvider *tunnel.Provider
+	if opts.Public {
+		globalCfg, err := config.LoadGlobalConfig(paths.ConfigDir)
+		if err != nil {
+			return fmt.Errorf("failed to load global config: %w", err)
+		}
+		if globalCfg.Tunnel.Provider == "" {
+			return fmt.Errorf("no tunnel provider configured\n  run 'roxy tunnel set' to choose one")
+		}
+
+		// if globalCfg.Tunnel.Provider == "custom" {
+		// 	if globalCfg.Tunnel.Command == "" {
+		// 		return fmt.Errorf("custom tunnel provider has no command configured\n  run 'roxy tunnel set' to fix")
+		// 	}
+		// 	prov := tunnel.CustomProvider(globalCfg.Tunnel.Command)
+		// 	tunnelProvider = &prov
+		// } else {
+		prov := tunnel.LookupProvider(globalCfg.Tunnel.Provider)
+		if prov == nil {
+			return fmt.Errorf("unknown tunnel provider: %s\n  run 'roxy tunnel set' to reconfigure", globalCfg.Tunnel.Provider)
+		}
+		tunnelProvider = prov
+		// }
+	}
+
 	// Detached mode: re-exec ourselves without -d, in a new session with log output
 	if opts.Detach {
 		return runDetached(opts, paths, dom, id, assignedPort, scheme)
 	}
 
-	fmt.Println()
+	localURL := fmt.Sprintf("%s://%s", scheme, dom)
 	if opts.ListenPort > 0 {
-		fmt.Printf("  %s (tcp :%d → :%d)\n", dom, opts.ListenPort, assignedPort)
-	} else {
-		url := fmt.Sprintf("%s://%s", scheme, dom)
-		fmt.Printf("  %s\n", url)
+		localURL = fmt.Sprintf("%s (tcp :%d → :%d)", dom, opts.ListenPort, assignedPort)
 	}
-	fmt.Println()
 
-	return process.Run(id, opts.Command, assignedPort, dom, opts.TLS, opts.ListenPort, store, paths.ConfigDir, opts.LogFile)
+	// Print URL up front unless --public (spawn.go prints local + tunnel together after tunnel connects)
+	if !opts.Public {
+		fmt.Println()
+		fmt.Printf("  %s\n", localURL)
+		fmt.Println()
+	}
+
+	return process.Run(id, opts.Command, assignedPort, dom, opts.TLS, opts.ListenPort, tunnelProvider, localURL, store, paths.ConfigDir, opts.LogFile)
 }
 
 func runDetached(opts RunOptions, paths platform.Paths, dom string, id string, assignedPort int, scheme string) error {
@@ -175,6 +206,9 @@ func runDetached(opts RunOptions, paths platform.Paths, dom string, id string, a
 	if opts.ListenPort > 0 {
 		args = append(args, "--listen-port", fmt.Sprintf("%d", opts.ListenPort))
 	}
+	if opts.Public {
+		args = append(args, "--public")
+	}
 	// Pass internal flags so the child records them in the route
 	args = append(args, "--log-file", logPath)
 	args = append(args, "--id", id)
@@ -189,15 +223,36 @@ func runDetached(opts RunOptions, paths platform.Paths, dom string, id string, a
 		return fmt.Errorf("failed to start detached process: %w", err)
 	}
 
-	fmt.Println()
+	localURL := fmt.Sprintf("%s://%s", scheme, dom)
 	if opts.ListenPort > 0 {
-		fmt.Printf("  %s (tcp :%d → :%d)\n", dom, opts.ListenPort, assignedPort)
+		localURL = fmt.Sprintf("%s (tcp :%d → :%d)", dom, opts.ListenPort, assignedPort)
+	}
+
+	// If --public, wait for the child to write the tunnel URL to routes.json
+	publicURL := ""
+	if opts.Public {
+		store := config.NewStore(paths.RoutesFile)
+		for range 30 { // poll for up to ~15s (30 * 500ms)
+			time.Sleep(500 * time.Millisecond)
+			if r := store.FindRoute(dom); r != nil && r.PublicURL != "" {
+				publicURL = r.PublicURL
+				break
+			}
+		}
+	}
+
+	fmt.Println()
+	if opts.Public {
+		fmt.Printf("  \x1b[90mlocal:\x1b[0m   %s\n", localURL)
+		if publicURL != "" {
+			fmt.Printf("  \x1b[90mremote:\x1b[0m  %s\n", publicURL)
+		} else {
+			fmt.Printf("  \x1b[33mremote:\x1b[0m  waiting... (check logs)\n")
+		}
 	} else {
-		url := fmt.Sprintf("%s://%s", scheme, dom)
-		fmt.Printf("  %s\n", url)
+		fmt.Printf("  %s\n", localURL)
 	}
 	fmt.Println()
-	fmt.Printf("  \x1b[90mpid\x1b[0m     %d\n", cmd.Process.Pid)
 	fmt.Printf("  \x1b[90mlogs\x1b[0m    %s\n", logPath)
 	fmt.Println()
 
