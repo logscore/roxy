@@ -86,7 +86,7 @@ func RunAll(cfg *config.RoxyConfig, callerOpts RunOptions) error {
 
 	// Auto-start proxy if not running
 	if !proxy.IsRunning(paths.ConfigDir) {
-		if err := ProxyStart(ProxyOptions{HTTPPort: 80, TLS: true, HTTPSPort: 443, DNSPort: 5353}); err != nil {
+		if err := ProxyStart(ProxyOptions{HTTPPort: 80, TLS: true, HTTPSPort: 443, DNSPort: 1299}); err != nil {
 			return fmt.Errorf("failed to start proxy: %w", err)
 		}
 		for range proxy.ProxyStartRetries {
