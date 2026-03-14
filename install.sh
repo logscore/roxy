@@ -111,13 +111,14 @@ main() {
   echo "Verifying checksum..."
   verify_checksum "${TMPDIR}/${asset}" "$checksums_url" "$asset"
 
-  chmod +x "${TMPDIR}/${asset}"
+  tar -xzf "${TMPDIR}/${asset}" -C "${TMPDIR}"
+  chmod +x "${TMPDIR}/${BINARY}"
 
   if [ -w "$INSTALL_DIR" ]; then
-    mv "${TMPDIR}/${asset}" "${INSTALL_DIR}/${BINARY}"
+    mv "${TMPDIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
   else
     echo "Installing to ${INSTALL_DIR} (requires sudo)..."
-    sudo mv "${TMPDIR}/${asset}" "${INSTALL_DIR}/${BINARY}"
+    sudo mv "${TMPDIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
   fi
 
   echo "roxy ${version} installed to ${INSTALL_DIR}/${BINARY}"
